@@ -40,7 +40,7 @@ class Nsort:
 
 
 if __name__ == "__main__":
-    reTxt = open('/home/anypoint/test.txt','r').read()
+    reTxt = open('/home/nara/test.txt','r').read()
     sep = re.search("['\n'\' '\',']", reTxt).group()
     lsSort = Nsort(reTxt, sep)
     lsSort.con()
