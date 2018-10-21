@@ -106,7 +106,10 @@ class make_book_info:
 
 
 
-
+if __name__ == '__main__':
+    book_link = make_book_info(keyword='철학')
+    philosophy_link = book_link.make_book_link( parser='bs',
+                                                check_page=30)
 
 
 
