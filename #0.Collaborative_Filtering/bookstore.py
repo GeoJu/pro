@@ -6,7 +6,8 @@ import re
 from collections import OrderedDict, Counter
 from konlpy.tag import Twitter
 
-class make_book_info:
+class MakeBookInfo:
+    
     def __init__(self, keyword):
         self.__keyword = keyword
     
@@ -18,7 +19,6 @@ class make_book_info:
         return netloc + query + page
     
     def response_parser(self, parser= 'bs', pg= 1):
-        
         response = urllib.request.urlopen(self._make_url(pg))
         
         if parser == 'bs':
@@ -28,16 +28,43 @@ class make_book_info:
             tree = etree.parse(response, etree.HTMLParser(encoding='utf-8'))
             return tree            
 
+    def jason_style(self, style = '2'):
+        j_link = {}
+        if style != '2':
+            j_link['data'] = {self.__keyword : []}
+        else:         
+            j_link['data'] = {self.__keyword : {'title' : [0],
+                                                'link' : [0],
+                                                'star' : [0],
+                                                'review' : [0],
+                                                'price' : [0]
+                                                }}
+        return j_link
+    
+    def except_title(self, f):
+        flag = True
+        try:
+            f.find('img')['alt']
+        except:
+            flag = False
+        return flag
     
     def make_book_link(self, parser, check_page):    
-        #link = OrderedDict()
-        
+        link = OrderedDict()
         c_parser = self.response_parser(parser , pg = 1)
-
         tot_page = int(re.match('\d+', c_parser.select_one('body > div.tit_area > span.num.num2 > strong').text).group())
+        
         get_link = c_parser.select('#searchBiblioList > li > div > div > a')
-                                 
-        link = {get_link[i].find('img')['alt'] : get_link[i]['href'] for i in range(len(get_link))}               
+        detail_info = c_parser.select('#searchBiblioList > li > dl > dd.txt_desc')                         
+        detail_li = [re.findall('\d.\d*', i.text) for i in detail_info if re.findall('\d.\d*', i.text)]
+                            
+        book_detail = self.jason_style('2')
+        
+        book_detail['data'][self.__keyword]['title'].extend([i.find('img')['alt']  if self.except_title(i) else i.text for i in get_link])
+        book_detail['data'][self.__keyword]['link'].extend([i['href'] for i in get_link])
+        book_detail['data'][self.__keyword]['star'].extend([i[0] if i else 'Null' for i in detail_li])
+        book_detail['data'][self.__keyword]['review'].extend([i[1] if i else 'Null' for i in detail_li])
+        book_detail['data'][self.__keyword]['price'].extend([i[2] if i else 'Null' for i in detail_li])
         
         if isinstance(check_page, int):
             page = check_page
@@ -46,27 +73,22 @@ class make_book_info:
         else:
             page = int((tot_page // 10) // 2)
         
-        
         for i in range(2, page):
             c_parser = self.response_parser(parser, i)        
             get_link = c_parser.select('#searchBiblioList > li > div > div > a')
-                                      
-            for j in range(len(get_link)):
-                
-                try:
-                    get_link[j].find('img')['alt']
-                except:
-                    print('alt not in site')
-                    link[get_link[j].text] = get_link[j]['href']
-                
-                link[get_link[j].find('img')['alt']] = get_link[j]['href']#\
-            
-           # link[']
-        return link
+            detail_info = c_parser.select('#searchBiblioList > li > dl > dd.txt_desc')
+            detail_li = [re.findall('\d.\d*', i.text) for i in detail_info if re.findall('\d.\d*', i.text) ]
+        
+            book_detail['data'][self.__keyword]['title'].extend([i.find('img')['alt'] if self.except_title(i) else i.text for i in get_link])
+            book_detail['data'][self.__keyword]['link'].extend([i['href'] for i in get_link])
+            book_detail['data'][self.__keyword]['star'].extend([i[0] if i else 'Null' for i in detail_li])
+            book_detail['data'][self.__keyword]['review'].extend([i[1] if i else 'Null' for i in detail_li])
+            book_detail['data'][self.__keyword]['price'].extend([i[2] if i else 'Null' for i in detail_li])
+        
+        return book_detail
 
-    def cleantext(self, text):           #필요한 문자만 추출하는 함수.
-    	#ctext = text
-    #	cText = str(text)[:str(text).find('<a href')]
+
+    def cleantext(self, text):           
         cText = re.sub(r'\r.*?\s','',text)
         cText = re.sub('(부록\s[a-zA-Z] | CHAPTER\s[0-9])/g','',cText)    				
         cText = re.sub('<.*?>','',cText)
